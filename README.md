@@ -1,54 +1,87 @@
-# React + TypeScript + Vite
+# Typeahead Search Page
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Overview
+This project is a React-based search page built using Vite and TypeScript (TSX). It allows users to search comments from a public JSON API with a typeahead feature and displays up to 20 relevant results. The project follows the KISS principle to ensure simplicity and maintainability.
 
-Currently, two official plugins are available:
+## Tech Stack
+- **Frontend:** React.js (with TypeScript, TSX)
+- **Build Tool:** Vite
+- **State Management:** React hooks (useState, useEffect)
+- **HTTP Client:** XHR Requests
+- **Testing Framework:** Vitest with React Testing Library
+- **Styling:** CSS Modules
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## Project Structure
+```
+├── src
+│   ├── components
+│   │   ├── Search
+│   │   |   ├── Search.tsx
+│   ├── customHooks
+│   │   ├── useDebounce.ts
+│   ├── App.tsx
+│   ├── main.tsx
+├── public
+├── tests
+|   ├── App.test.tsx
+|   ├── main.test.tsx
+│   ├── Search.test.tsx
+│   ├── useDebounce.test.tsx
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+└── README.md
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Component Breakdown
+### 1. `Search.tsx`
+- Renders the input box with typeahead functionality.
+- Calls API when input length exceeds 3 characters.
+- Debounces user input to reduce unnecessary API calls.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### 2. `SearchResults.tsx`
+- Displays up to 20 search results.
+- Shows `name`, `email`, and a truncated `body` (64 characters max).
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+## API Integration
+### Endpoint Used:
+`https://jsonplaceholder.typicode.com/comments?q=<searchTerm>`
+- The `q` parameter is used to send the search term.
+- Response is filtered and truncated before being displayed.
+
+## State Management
+- The search query is managed using React’s `useState`.
+- The API call is triggered using `useEffect`, with input debounced using a custom `useDebounce` hook.
+- Search results are stored in a state variable and rendered dynamically.
+
+## Performance Optimizations
+- **Debouncing:** Limits API requests by waiting for user input to settle.
+- **Lazy Rendering:** Results are only rendered when API fetch is complete.
+
+## Development & Testing
+### Run Development Server:
 ```
+npm install
+npm run dev
+```
+
+### Run Tests:
+```
+npm test
+```
+Tests include:
+- Rendering and interaction tests for `Search`
+- API call mocking and response handling
+- Display validation for `Search`
+
+## Production Build
+- The project uses Vite for bundling and optimization.
+- Generate a production build with:
+```
+npm run build
+```
+
+## Conclusion
+This project is a lightweight, optimized, and easy-to-maintain search page that ensures a smooth user experience while following best practices in React and TypeScript development.
+
+
