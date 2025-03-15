@@ -38,8 +38,6 @@ This project is a React-based search page built using Vite and TypeScript (TSX).
 - Renders the input box with typeahead functionality.
 - Calls API when input length exceeds 3 characters.
 - Debounces user input to reduce unnecessary API calls.
-
-### 2. `SearchResults.tsx`
 - Displays up to 20 search results.
 - Shows `name`, `email`, and a truncated `body` (64 characters max).
 
