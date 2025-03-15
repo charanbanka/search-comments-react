@@ -1,10 +1,11 @@
-import App from "./App"; // Adjust the import path
+import React from "react";
+import App from "../src/App"; // Adjust the import path
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { describe, it, expect, vi } from "vitest";
 
 // Mock the Search component
-vi.mock("./components/Search/Search", () => ({
+vi.mock("../src/components/Search/Search", () => ({
   default: () => <div data-testid="mock-search">Mock Search Component</div>,
 }));
 

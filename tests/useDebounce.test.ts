@@ -1,6 +1,7 @@
+import React from "react";
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import useDebounce from "./useDebounce"; // Adjust path if necessary
+import useDebounce from "../src/components/customHooks/useDebounce"; // Adjust path if necessary
 
 describe("useDebounce Hook", () => {
   beforeEach(() => {
