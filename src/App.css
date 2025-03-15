@@ -1,0 +1,86 @@
+.App {
+  text-align: center;
+}
+
+.search-container {
+  max-width: 800px;
+  margin: auto;
+  text-align: center;
+}
+
+.search-main {
+  text-align: right;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+.search-field {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+input {
+  width: 300px;
+  padding: 8px;
+  margin-right: 5px;
+  /* border: gray; */
+  border-radius: 5px;
+}
+
+input::before {
+  border: 1px solid gray;
+}
+
+input:focus {
+  border-color: blue;
+}
+
+button {
+  padding: 8px 12px;
+  border-radius: 5px;
+  border: none;
+  background-color: blue;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: rgb(8, 8, 173);
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  background: #f8f8f8;
+  padding: 10px;
+  margin-top: 5px;
+  border-radius: 5px;
+}
+
+.text-danger {
+  color: red;
+}
+
+.table-container {
+  margin-top: 1rem;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
