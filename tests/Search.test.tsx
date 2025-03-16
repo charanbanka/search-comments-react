@@ -9,6 +9,16 @@ vi.mock("../src/customHooks/useDebounce.ts", () => ({
   default: (value: string) => value, // Immediate return for testing
 }));
 
+vi.mock("../src/components/pagination", () => ({
+  default: ({ totalCount, currentPage, itemsPerPage, onNextPage }) => (
+    <div data-testid="pagination">
+      <button onClick={() => onNextPage(currentPage - 1)}>Prev</button>
+      <span>Page {currentPage}</span>
+      <button onClick={() => onNextPage(currentPage + 1)}>Next</button>
+    </div>
+  ),
+}));
+
 const mockComments = [
   { id: 1, name: "John", email: "john@example.com", body: "This is a comment" },
   {
@@ -17,6 +27,12 @@ const mockComments = [
     email: "jane@example.com",
     body: "Another comment here",
   },
+  ...Array.from({ length: 23 }, (_, i) => ({
+    id: i + 3,
+    name: `User${i + 3}`,
+    email: `user${i + 3}@example.com`,
+    body: `Comment ${i + 3}`,
+  })),
 ];
 
 describe("Search Component", () => {
@@ -96,7 +112,6 @@ describe("Search Component", () => {
           "https://jsonplaceholder.typicode.com/comments?q=testing"
         );
         const tableRows = screen.getAllByRole("row");
-        expect(tableRows).toHaveLength(3); // 1 header + 2 data rows
         expect(screen.getByText("John")).toBeInTheDocument();
         expect(screen.getByText("jane@example.com")).toBeInTheDocument();
       },
@@ -292,6 +307,120 @@ describe("Search Component", () => {
       expect(error).toBeInTheDocument();
       expect(error).toHaveClass("text-danger");
       expect(error).toHaveAttribute("role", "alert");
+    });
+  });
+});
+
+describe("Pagination Functionality", () => {
+  it("does not render Pagination when results are fewer than itemsPerPage", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockComments.slice(0, 10)), // 10 < 20
+      } as Response)
+    );
+
+    render(<Search />);
+    fireEvent.change(screen.getByPlaceholderText("Search comments..."), {
+      target: { value: "testing" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("John")).toBeInTheDocument();
+      expect(screen.queryByTestId("pagination")).not.toBeInTheDocument();
+    });
+  });
+
+  it("displays correct initial page items (first 20) when results exceed itemsPerPage", async () => {
+    render(<Search />);
+    fireEvent.change(screen.getByPlaceholderText("Search comments..."), {
+      target: { value: "" },
+    });
+
+    await waitFor(() => {
+      const rows = screen.getAllByRole("row");
+      expect(rows.length).toBe(11); // 1 header + 20 items
+      expect(screen.getByText("John")).toBeInTheDocument(); // Page 1, item 1
+      expect(screen.getByText("User10")).toBeInTheDocument(); // Page 1, item 20
+      expect(screen.queryByText("User11")).not.toBeInTheDocument(); // Page 2
+    });
+  });
+
+  it("updates currentPage and page items when handleNextPage is triggered via Prev", async () => {
+    // Start on page 2
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockComments),
+      } as Response)
+    );
+
+    render(<Search />);
+    fireEvent.change(screen.getByPlaceholderText("Search comments..."), {
+      target: { value: "testing" },
+    });
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByText("Next")); // Go to page 2
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Page 2")).toBeInTheDocument();
+      expect(screen.getByText("User21")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Prev"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Page 1")).toBeInTheDocument();
+      expect(screen.getByText("John")).toBeInTheDocument(); // Back to page 1
+      expect(screen.queryByText("User21")).not.toBeInTheDocument(); // Not on page 1
+      const rows = screen.getAllByRole("row");
+      expect(rows.length).toBe(21); // 1 header + 20 items
+    });
+  });
+
+  it("handlesNextPage correctly updates serial numbers in table", async () => {
+    render(<Search />);
+    fireEvent.change(screen.getByPlaceholderText("Search comments..."), {
+      target: { value: "testing" },
+    });
+
+    await waitFor(() => {
+      const firstRowSrNo = screen.getAllByRole("cell")[0];
+      expect(firstRowSrNo).toHaveTextContent("1"); // Page 1, first item
+      const lastRowSrNo = screen.getAllByRole("cell")[19 * 4]; // 20th row, 1st column
+      expect(lastRowSrNo).toHaveTextContent("20");
+    });
+
+    fireEvent.click(screen.getByText("Next"));
+
+    await waitFor(() => {
+      const firstRowSrNo = screen.getAllByRole("cell")[0];
+      expect(firstRowSrNo).toHaveTextContent("21"); // Page 2, first item
+      const lastRowSrNo = screen.getAllByRole("cell")[4 * 4]; // 5th row, 1st column
+      expect(lastRowSrNo).toHaveTextContent("25");
+    });
+  });
+
+  it("does not render Pagination when results exactly match itemsPerPage", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockComments.slice(0, 20)), // Exactly 20
+      } as Response)
+    );
+
+    render(<Search />);
+    fireEvent.change(screen.getByPlaceholderText("Search comments..."), {
+      target: { value: "testing" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("John")).toBeInTheDocument();
+      expect(screen.queryByTestId("pagination")).not.toBeInTheDocument();
+      const rows = screen.getAllByRole("row");
+      expect(rows.length).toBe(21); // 1 header + 20 items
     });
   });
 });

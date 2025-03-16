@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import useDebounce from "../customHooks/useDebounce";
+import Pagination from "../pagination";
 
 const API_URL = "https://jsonplaceholder.typicode.com/comments";
 
@@ -13,6 +14,12 @@ interface Comment {
 const Search: React.FC = () => {
   const [query, setQuery] = useState<string>("");
   const [results, setResults] = useState<Comment[]>([]);
+  const [currentPageItems, setCurrentPageItems] = useState<Comment[]>([]);
+  const [paginationData, setPaginationData] = useState({
+    currentPage: 1,
+    itemsPerPage: 20,
+    totalCount: 0,
+  });
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const debouncedQuery = useDebounce(query, 1000);
@@ -34,7 +41,11 @@ const Search: React.FC = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data: Comment[] = await response.json();
-      setResults(data.slice(0, 20));
+      setResults(data);
+      setPaginationData((prev) => {
+        return { ...prev, currentPage: 1, totalCount: data.length || 0 };
+      });
+      setCurrentPageItems(data.slice(0, paginationData.itemsPerPage));
     } catch (err) {
       setError(
         err instanceof Error
@@ -53,6 +64,18 @@ const Search: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchResults(query);
+  };
+
+  const handleNextPage = (newPage: number) => {
+    setPaginationData((prev) => {
+      return { ...prev, currentPage: newPage };
+    });
+    setCurrentPageItems(
+      results.slice(
+        paginationData.itemsPerPage * (newPage - 1),
+        paginationData.itemsPerPage * newPage
+      )
+    );
   };
 
   return (
@@ -81,9 +104,7 @@ const Search: React.FC = () => {
           {loading ? "Searching..." : "Search"}
         </button>
       </form>
-
       {loading && <p aria-live="polite">Loading Comments...</p>}
-
       <div className="table-container" data-testid="table-container">
         <table role="grid">
           <thead>
@@ -95,10 +116,15 @@ const Search: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {results.length > 0 ? (
-              results.map((item, idx) => (
+            {currentPageItems.length > 0 ? (
+              currentPageItems.map((item, idx) => (
                 <tr key={item.id}>
-                  <td>{idx + 1}</td>
+                  <td>
+                    {idx +
+                      1 +
+                      (paginationData.currentPage - 1) *
+                        paginationData.itemsPerPage}
+                  </td>
                   <td>{item.name}</td>
                   <td>{item.email}</td>
                   <td title={item.body}>
@@ -116,6 +142,17 @@ const Search: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {results.length > paginationData.itemsPerPage && (
+        <div>
+          <Pagination
+            totalCount={results.length || 0}
+            currentPage={paginationData.currentPage}
+            itemsPerPage={20}
+            onNextPage={handleNextPage}
+          />
+        </div>
+      )}
     </div>
   );
 };
