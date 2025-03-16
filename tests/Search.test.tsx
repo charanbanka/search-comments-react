@@ -1,16 +1,14 @@
-import React from "react"; // Add this at the top of your test file
+import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { describe, it, expect, vi } from "vitest";
 import Search from "../src/components/Search/Search.tsx";
-import useDebounce from "../src/components/customHooks/useDebounce.ts"; // Adjust the import path
 
 // Mock the useDebounce hook
-vi.mock("../customHooks/useDebounce", () => ({
-  default: (value: string) => value, // For simplicity, return value directly (no delay in tests)
+vi.mock("../src/customHooks/useDebounce.ts", () => ({
+  default: (value: string) => value, // Immediate return for testing
 }));
 
-// Mock XMLHttpRequest globally
 const mockComments = [
   { id: 1, name: "John", email: "john@example.com", body: "This is a comment" },
   {
@@ -22,174 +20,278 @@ const mockComments = [
 ];
 
 describe("Search Component", () => {
-  let xhrMock: {
-    open: ReturnType<typeof vi.fn>;
-    send: ReturnType<typeof vi.fn>;
-    onreadystatechange: () => void;
-    readyState: number;
-    status: number;
-    responseText: string;
-  };
-
   beforeEach(() => {
-    // Mock XMLHttpRequest
-    xhrMock = {
-      open: vi.fn(),
-      send: vi.fn(),
-      onreadystatechange: vi.fn(),
-      readyState: 4,
-      status: 200,
-      responseText: JSON.stringify(mockComments),
-    };
-    global.XMLHttpRequest = vi.fn(() => xhrMock) as any;
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockComments),
+      } as Response)
+    );
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("renders the search input and button", () => {
+  it("renders with correct initial classNames and structure", () => {
     render(<Search />);
-    expect(
-      screen.getByPlaceholderText("Search comments...")
-    ).toBeInTheDocument();
-    expect(screen.getByText("Search")).toBeInTheDocument();
+
+    const container = screen.getByTestId("search-container");
+    expect(container).toHaveClass("search-container");
+
+    const form = screen.getByTestId("search-main");
+    expect(form).toHaveClass("search-main");
+
+    const input = screen.getByPlaceholderText("Search comments...");
+    expect(input.parentElement).toHaveClass("search-field");
+
+    const table = screen.getByRole("grid");
+    expect(table.parentElement).toHaveClass("table-container");
+
+    expect(screen.getByText("No Comments...")).toBeInTheDocument();
   });
 
-  it("displays error message for input less than 4 characters", async () => {
+  it("displays error message with text-danger class for short input", async () => {
     render(<Search />);
     const input = screen.getByPlaceholderText("Search comments...");
-    fireEvent.change(input, { target: { value: "ac" } });
+    fireEvent.change(input, { target: { value: "abc" } });
+
     await waitFor(
       () => {
-        expect(
-          screen.queryByText("Please Enter Atleast 4 characters!")
-        ).toBeInTheDocument();
+        const error = screen.queryByText("Please enter at least 4 characters!");
+        expect(error).toBeInTheDocument();
+        expect(error).toHaveClass("text-danger");
+        expect(error).toHaveAttribute("role", "alert");
       },
       { timeout: 2000 }
     );
   });
 
-  it("clears error and results when input is empty", async () => {
+  it("clears error and shows no comments when input is empty", async () => {
     render(<Search />);
     const input = screen.getByPlaceholderText("Search comments...");
+
     fireEvent.change(input, { target: { value: "test" } });
+
     await waitFor(
       () => {
         expect(
-          screen.queryByText("Please Enter Atleast 4 characters!")
+          screen.queryByText("Please enter at least 4 characters!")
         ).not.toBeInTheDocument();
+        expect(screen.getByText("No Comments...")).toBeInTheDocument();
       },
       { timeout: 2000 }
     );
-    fireEvent.change(input, { target: { value: "" } });
-    await waitFor(() => {
-      expect(
-        screen.queryByText("Please Enter Atleast 4 characters!")
-      ).not.toBeInTheDocument();
-      expect(screen.getByText("No Comments...")).toBeInTheDocument();
-    });
   });
 
-  it("fetches results when debounced value updates", async () => {
+  it("fetches results and renders table rows on valid input", async () => {
     render(<Search />);
-
     const input = screen.getByPlaceholderText("Search comments...");
 
-    // Simulate user typing
     fireEvent.change(input, { target: { value: "testing" } });
 
-    // Wait for the effect to run (debounce is mocked as immediate)
     await waitFor(
       () => {
-        expect(xhrMock.open).toHaveBeenCalledWith(
-          "GET",
-          "https://jsonplaceholder.typicode.com/comments?q=testing",
-          true
+        expect(global.fetch).toHaveBeenCalledWith(
+          "https://jsonplaceholder.typicode.com/comments?q=testing"
         );
-        expect(xhrMock.send).toHaveBeenCalled();
+        const tableRows = screen.getAllByRole("row");
+        expect(tableRows).toHaveLength(3); // 1 header + 2 data rows
+        expect(screen.getByText("John")).toBeInTheDocument();
+        expect(screen.getByText("jane@example.com")).toBeInTheDocument();
       },
       { timeout: 2000 }
     );
-
-    // Simulate XHR response
-    xhrMock.onreadystatechange();
-    await waitFor(() => {
-      expect(screen.getByText("John")).toBeInTheDocument();
-    });
   });
 
-  it("calls fetchResults and shows loading state on valid input", async () => {
+  it("calls fetchResults with query on form submission", async () => {
+    render(<Search />);
+    const input = screen.getByPlaceholderText("Search comments...");
+    const form = screen.getByTestId("search-main"); // Assuming data-testid is added
+
+    // Set input value
+    fireEvent.change(input, { target: { value: "submit-test" } });
+
+    // Submit the form
+    fireEvent.submit(form);
+
+    await waitFor(
+      () => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          "https://jsonplaceholder.typicode.com/comments?q=submit-test"
+        );
+        expect(screen.getByText("John")).toBeInTheDocument();
+      },
+      { timeout: 2000 }
+    );
+  });
+
+  it("handles non-Error fetch rejection with generic error message", async () => {
+    // Mock fetch to reject with a non-Error value (e.g., a string)
+    global.fetch = vi.fn(() => Promise.reject("Network failure"));
+
+    render(<Search />);
+    const input = screen.getByPlaceholderText("Search comments...");
+
+    fireEvent.change(input, { target: { value: "testing" } });
+
+    await waitFor(
+      () => {
+        const error = screen.getByText(
+          "An error occurred while fetching data."
+        );
+        expect(error).toBeInTheDocument();
+        expect(error).toHaveClass("text-danger");
+      },
+      { timeout: 2000 }
+    );
+  });
+
+  it("handles Error object fetch rejection with specific message", async () => {
+    // Mock fetch to reject with an Error object
+    global.fetch = vi.fn(() => Promise.reject(new Error("Network error")));
+
+    render(<Search />);
+    const input = screen.getByPlaceholderText("Search comments...");
+
+    fireEvent.change(input, { target: { value: "testing" } });
+
+    await waitFor(
+      () => {
+        const error = screen.getByText("Network error");
+        expect(error).toBeInTheDocument();
+        expect(error).toHaveClass("text-danger");
+      },
+      { timeout: 2000 }
+    );
+  });
+
+  it("shows loading state with correct attributes", async () => {
+    let resolveFetch: (value: Response) => void;
+    global.fetch = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        })
+    );
+
     render(<Search />);
     const input = screen.getByPlaceholderText("Search comments...");
     fireEvent.change(input, { target: { value: "testing" } });
 
     await waitFor(() => {
-      expect(screen.getByText("Loading Comments...")).toBeInTheDocument();
+      const loading = screen.getByText("Loading Comments...");
+      expect(loading).toBeInTheDocument();
+      expect(loading).toHaveAttribute("aria-live", "polite");
     });
 
-    // Simulate XHR response
-    xhrMock.onreadystatechange();
+    resolveFetch!({
+      ok: true,
+      json: () => Promise.resolve(mockComments),
+    } as Response);
+
     await waitFor(() => {
       expect(screen.queryByText("Loading Comments...")).not.toBeInTheDocument();
-      expect(screen.getByText("John")).toBeInTheDocument();
-      expect(screen.getByText("Jane")).toBeInTheDocument();
     });
   });
 
-  it("limits results to 20 and truncates long body text", async () => {
-    const longBodyComment = {
+  it("truncates long body text and adds title attribute", async () => {
+    const longComment = {
       id: 3,
       name: "Bob",
       email: "bob@example.com",
-      body: "This is a very long comment that exceeds 64 characters and should be truncated in the UI accordingly.",
+      body: "This is a very long comment that exceeds 64 characters and should be truncated in the UI.",
     };
-    xhrMock.responseText = JSON.stringify([...mockComments, longBodyComment]);
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([longComment]),
+      } as Response)
+    );
+
     render(<Search />);
     const input = screen.getByPlaceholderText("Search comments...");
     fireEvent.change(input, { target: { value: "testing" } });
 
-    xhrMock.onreadystatechange();
     await waitFor(() => {
-      const bodyText = screen.getByText(
-        /This is a very long comment that exceeds 64 characters and shoul.../
+      const truncatedText = screen.getByText(
+        "This is a very long comment that exceeds 64 characters and shoul..."
       );
-      expect(bodyText).toBeInTheDocument();
+      expect(truncatedText).toBeInTheDocument();
+      expect(truncatedText).toHaveAttribute("title", longComment.body);
     });
   });
 
-  it("triggers fetchResults on button click", async () => {
+  it("disables input and button during loading", async () => {
+    let resolveFetch: (value: Response) => void;
+    global.fetch = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        })
+    );
+
     render(<Search />);
     const input = screen.getByPlaceholderText("Search comments...");
-    const button = screen.getByText("Search");
+    const button = screen.getByRole("button", { name: "Searching..." });
+
+    fireEvent.change(input, { target: { value: "testing" } });
+
+    await waitFor(() => {
+      expect(input).toBeDisabled();
+      expect(button).toBeDisabled();
+      expect(button).toHaveTextContent("Searching...");
+    });
+
+    resolveFetch!({
+      ok: true,
+      json: () => Promise.resolve(mockComments),
+    } as Response);
+
+    await waitFor(() => {
+      expect(input).not.toBeDisabled();
+      expect(button).not.toBeDisabled();
+      expect(button).toHaveTextContent("Search");
+    });
+  });
+
+  it("triggers fetch on form submission", async () => {
+    render(<Search />);
+    const input = screen.getByPlaceholderText("Search comments...");
+    const button = screen.getByRole("button", { name: /Search/ });
+
     fireEvent.change(input, { target: { value: "testing" } });
     fireEvent.click(button);
 
-    await waitFor(() => {
-      expect(xhrMock.open).toHaveBeenCalledWith(
-        "GET",
-        "https://jsonplaceholder.typicode.com/comments?q=testing",
-        true
-      );
-      expect(xhrMock.send).toHaveBeenCalled();
-    });
-
-    xhrMock.onreadystatechange();
-    await waitFor(() => {
-      expect(screen.getByText("John")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          "https://jsonplaceholder.typicode.com/comments?q=testing"
+        );
+        expect(screen.getByText("John")).toBeInTheDocument();
+      },
+      { timeout: 2000 }
+    );
   });
 
-  it("handles XHR error gracefully", async () => {
-    xhrMock.status = 500; // Simulate server error
+  it("handles fetch error with proper styling", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({}),
+      } as Response)
+    );
+
     render(<Search />);
     const input = screen.getByPlaceholderText("Search comments...");
     fireEvent.change(input, { target: { value: "testing" } });
 
-    xhrMock.onreadystatechange();
     await waitFor(() => {
-      expect(screen.queryByText("John")).not.toBeInTheDocument();
-      expect(screen.getByText("No Comments...")).toBeInTheDocument(); // Fallback UI
+      const error = screen.getByText("HTTP error! status: 500");
+      expect(error).toBeInTheDocument();
+      expect(error).toHaveClass("text-danger");
+      expect(error).toHaveAttribute("role", "alert");
     });
   });
 });
