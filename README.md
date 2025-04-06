@@ -82,4 +82,15 @@ npm run build
 ## Conclusion
 This project is a lightweight, optimized, and easy-to-maintain search page that ensures a smooth user experience while following best practices in React and TypeScript development.
 
+UI Screens
+
+![search-comments-1](https://github.com/user-attachments/assets/ebc71077-0d37-42a3-9de4-221042710b54)
+
+![search-comments-2](https://github.com/user-attachments/assets/f994878c-e4c1-452f-9ec0-f4e2ad300464)
+
+![search-comments-3](https://github.com/user-attachments/assets/6447ad64-e8a2-4768-994f-d50a68ba25cc)
+
+
+
+
 
